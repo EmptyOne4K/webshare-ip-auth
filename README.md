@@ -2,7 +2,7 @@
 
 This is a IP authorization tool for [webshare.io](https://webshare.io). It periodically checks if your remote IP address has changed and keeps it authorized.
 
-If you like my work, consider using my referral link: (referral)[https://www.webshare.io/?referral_code=8vkbotf1wf3v].
+If you like my work, consider using my referral link: [referral](https://www.webshare.io/?referral_code=8vkbotf1wf3v).
 (I get commissions for purchases made through this link.)
 
 ## Features
@@ -19,7 +19,7 @@ cp config.json.example config.json
 ```
 
 Add your token to the config. This is required to access webshare's API.
-If you do not know or have a token, you can get one on your (Dashboard)[https://proxy2.webshare.io/userapi/keys].
+If you do not know or have a token, you can get one on your [Dashboard](https://proxy2.webshare.io/userapi/keys).
 
 ## PM2
 ```shell
