@@ -1,0 +1,6 @@
+{
+    "webshare_token": "YOUR TOKEN HERE",
+    "check_cycle_time": 5,
+    "remove_all_auths_on_startup": false,
+    "LAST_LINE": "I HATE COMMAS"
+}
