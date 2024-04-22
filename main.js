@@ -133,11 +133,11 @@ function getRemoteIp()
 			)
 			.then
 			(
-				(data) => resolve(data['ip_address'])
+				(data) => resolve (data['ip_address'])
 			)
 			.catch
 			(
-				(error) => resolve('[ERROR] Error while getting remote IP address: ' + error)
+				(error) => resolve ('[ERROR] Error while getting remote IP address: ' + error)
 			);
 		}
 	);
@@ -158,11 +158,11 @@ function getIpAuthorizationList()
 			)
 			.then
 			(
-				(data) => resolve(data)
+				(data) => resolve (data)
 			)
 			.catch
 			(
-				(error) => resolve('[ERROR] Error while getting IP authorization list: ' + error)
+				(error) => resolve ('[ERROR] Error while getting IP authorization list: ' + error)
 			);
 		}
 	);
@@ -183,11 +183,11 @@ function removeIpAuthorization(id)
 			)
 			.then
 			(
-				(data) => resolve(data)
+				(data) => resolve (data)
 			)
 			.catch
 			(
-				(error) => resolve('[ERROR] Error while getting IP authorization list: ' + error)
+				(error) => resolve ('[ERROR] Error while getting IP authorization list: ' + error)
 			);
 		}
 	);
@@ -209,11 +209,11 @@ function addIpAuthorization(ip)
 			)
 			.then
 			(
-				(data) => resolve(data)
+				(data) => resolve (data)
 			)
 			.catch
 			(
-				(error) => resolve('[ERROR] Error while authorizing IP address: ' + error)
+				(error) => resolve ('[ERROR] Error while authorizing IP address: ' + error)
 			);
 		}
 	);
@@ -229,7 +229,7 @@ function wait(msec)
 			(
 				() =>
 				{
-					resolve('resolved');
+					resolve (true);
 				}, msec
 			);
 		}
@@ -368,7 +368,7 @@ async function main()
 					if (lastRemoteIp == ipAuthListResults[i]['ip_address'])
 					{
 						lastRemoteIpId = ipAuthListResults[i]['id'];
-						await log('[INFO] Found ID: ' + lastRemoteIpId);
+						await log('[INFO] Authorization ID: ' + lastRemoteIpId);
 						break;
 					}
 				}
@@ -454,7 +454,7 @@ function shutdown()
 {
 	keepRunning = false;
 	log('[INFO] Inited graceful shutdown.');
-	wait(15000);
+	wait(10000);
 	process.exit();
 }
 
