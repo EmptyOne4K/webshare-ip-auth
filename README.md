@@ -2,7 +2,7 @@
 
 This is a IP authorization tool for [webshare.io](https://webshare.io). It periodically checks if your remote IP address has changed and keeps it authorized.
 
-If you like my work, consider using my referral link: [referral](https://www.webshare.io/?referral_code=8vkbotf1wf3v).
+If you like my work, consider using my [referral link](https://www.webshare.io/?referral_code=8vkbotf1wf3v).
 (I get commissions for purchases made through this link.)
 
 ## Features
