@@ -16,7 +16,6 @@ function webRequest(host, path, method = 'GET', token = null, postData = null)
 	var options =
 	{
 		host: host,
-		//port: port,
 		path: path,
 		method: method,
 		headers: token == null ? null :
@@ -25,6 +24,9 @@ function webRequest(host, path, method = 'GET', token = null, postData = null)
 		}
 	};
 	
+	var statusCode;
+	var responseHeaders;
+	var responseBody = '';
 	var postString = null;
 	
 	if (postData != null)
@@ -33,10 +35,6 @@ function webRequest(host, path, method = 'GET', token = null, postData = null)
 		options.headers['Content-Type'] = 'application/json';
 		options.headers['Content-Length'] = Buffer.byteLength(postString);
 	}
-	
-	var statusCode;
-	var responseHeaders;
-	var responseBody = '';
 
 	return new Promise
 	(
@@ -62,14 +60,12 @@ function webRequest(host, path, method = 'GET', token = null, postData = null)
 						'data',
 						function (chunk)
 						{
-							//console.log('[DEBUG] BODY: ' + chunk);
 							responseBody += chunk;
 						}
 					);
 					
 					res.on
 					(
-						//'finish',
 						'end',
 						function ()
 						{
@@ -217,7 +213,7 @@ function addIpAuthorization(ip)
 			)
 			.catch
 			(
-				(error) => resolve('[ERROR] Error while getting remote IP address: ' + error)
+				(error) => resolve('[ERROR] Error while authorizing IP address: ' + error)
 			);
 		}
 	);
@@ -250,7 +246,7 @@ function log(message)
 
 async function main()
 {
-	// getting current remote ip address
+	// Get current remote IP address
 	
 	var lastRemoteIp = await getRemoteIp();
 	while (lastRemoteIp == null)
@@ -262,6 +258,8 @@ async function main()
 	
 	await log('[INFO] Current remote IP address: ' + lastRemoteIp);
 	
+	// Check current IP authorization list
+	
 	var ipAuthList = await getIpAuthorizationList();
 	var ipAuthListResults = ipAuthList['results'];
 	
@@ -272,7 +270,7 @@ async function main()
 		await log(ipAuthListResults[i]['id'] + ' => ' + ipAuthListResults[i]['ip_address']);
 	}
 	
-	// wipe old authorizations
+	// Wipe old IP authorizations
 	
 	var lastRemoteIpAuthorized = false;
 	
@@ -295,7 +293,7 @@ async function main()
 	}
 	else
 	{
-		// check if current ip address is authorized
+		// Check if current IP address is authorized
 		
 		for (var i = 0; i < ipAuthListResults.length; i++)
 		{
@@ -307,14 +305,14 @@ async function main()
 		}
 	}
 	
-	// authorize current ip address
-	
 	if (lastRemoteIpAuthorized)
 	{
 		await log('[INFO] Current remote IP address is authorized.');
 	}
 	else
 	{
+		// Authorize current IP address
+		
 		await log('[INFO] Authorizing current IP address...');
 		var addResponse = await addIpAuthorization(lastRemoteIp);
 		
@@ -329,7 +327,7 @@ async function main()
 		}
 	}
 	
-	// start authorization cycle
+	// Start authorization cycle
 	
 	while (keepRunning)
 	{
@@ -353,7 +351,7 @@ async function main()
 			await log('[INFO] New remote IP address: ' + newRemoteIp);
 			await log('[INFO] Revoking old IP address: ' + lastRemoteIp);
 			
-			// ensure auth list is updated
+			// Clear old auth list data
 			
 			ipAuthList = null;
 			ipAuthListResults = null;
@@ -384,18 +382,18 @@ async function main()
 			{
 				// Revoke old IP address authorization
 				
-				await log('[INFO] Revoking old remote IP address...');
+				await log('[INFO] Revoking old IP address authorization...');
 				if (await removeIpAuthorization(lastRemoteIpId))
 					await log('X ' + lastRemoteIp);
 				else
 					await log('[ERROR] Error while revoking old IP address authorization.');
 			}
 			
-			// ensure auth list is updated
+			// Ensure auth list is loaded
 			
 			if (ipAuthList == null || ipAuthListResults == null)
 			{
-				await log('[INFO] Updating IP address authorization list...');
+				await log('[INFO] Getting current IP address authorization list...');
 				ipAuthList = await getIpAuthorizationList();
 				ipAuthListResults = ipAuthList['results'];
 			}
@@ -409,7 +407,7 @@ async function main()
 			}
 			else
 			{
-				// check if current ip address is authorized
+				// Check if current IP address is authorized
 				
 				for (var i = 0; i < ipAuthListResults.length; i++)
 				{
@@ -421,7 +419,7 @@ async function main()
 				}
 			}
 			
-			// authorize current ip address
+			// Authorize current IP address
 			
 			if (lastRemoteIpAuthorized)
 			{
