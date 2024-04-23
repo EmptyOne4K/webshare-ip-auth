@@ -1,4 +1,4 @@
-// Webshare.io automatic IP authorization v0.0.1
+// Webshare.io automatic IP authorization v0.0.2
 
 // Config
 
@@ -246,6 +246,8 @@ function log(message)
 
 async function main()
 {
+	await log('[INFO] Startup.');
+	
 	// Get current remote IP address
 	
 	var lastRemoteIp = await getRemoteIp();
@@ -440,6 +442,8 @@ async function main()
 					await log(addResponse['id'] + ' => ' + addResponse['ip_address']);
 				}
 			}
+			
+			lastRemoteIp = newRemoteIp;
 		}
 	}
 	
