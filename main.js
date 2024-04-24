@@ -246,7 +246,7 @@ function log(message)
 	console.log(now + ' ' + message);
 }
 
-function errorLog(message)
+function logError(message)
 {
 	var now = new Date().toISOString();
 	console.error(now + ' ' + message);
