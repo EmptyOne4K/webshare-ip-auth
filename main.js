@@ -89,7 +89,7 @@ function webRequest(host, path, method = 'GET', token = null, postData = null)
 									}
 									catch (error)
 									{
-										await logError('[ERROR] Error while parsing response data: ' + error);
+										logError('[ERROR] Error while parsing response data: ' + error);
 										console.log('Data: ' + responseBody);
 										resolve (null);
 									}
@@ -105,7 +105,7 @@ function webRequest(host, path, method = 'GET', token = null, postData = null)
 				'error',
 				function (error)
 				{
-					await logError('[ERROR] Error during web request: ' + error.message);
+					logError('[ERROR] Error during web request: ' + error.message);
 					resolve (null);
 				}
 			);
@@ -137,8 +137,11 @@ function getRemoteIp()
 			)
 			.catch
 			(
-				await logError('[ERROR] Error while getting remote IP address: ' + error);
-				(error) => resolve (null)
+				() =>
+				{
+					logError('[ERROR] Error while getting remote IP address: ' + error);
+					(error) => resolve (null)
+				}
 			);
 		}
 	);
@@ -163,8 +166,11 @@ function getIpAuthorizationList()
 			)
 			.catch
 			(
-				await logError('[ERROR] Error while getting IP authorization list: ' + error);
-				(error) => resolve (null)
+				() =>
+				{
+					logError('[ERROR] Error while getting IP authorization list: ' + error);
+					(error) => resolve (null)
+				}
 			);
 		}
 	);
@@ -189,8 +195,11 @@ function removeIpAuthorization(id)
 			)
 			.catch
 			(
-				await logError('[ERROR] Error while getting IP authorization list: ' + error);
-				(error) => resolve (null)
+				() =>
+				{
+					logError('[ERROR] Error while getting IP authorization list: ' + error);
+					(error) => resolve (null)
+				}
 			);
 		}
 	);
@@ -216,8 +225,11 @@ function addIpAuthorization(ip)
 			)
 			.catch
 			(
-				await logError('[ERROR] Error while authorizing IP address: ' + error);
-				(error) => resolve (null)
+				() =>
+				{
+					logError('[ERROR] Error while authorizing IP address: ' + error);
+					(error) => resolve (null)
+				}
 			);
 		}
 	);
