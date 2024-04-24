@@ -89,7 +89,7 @@ function webRequest(host, path, method = 'GET', token = null, postData = null)
 									}
 									catch (error)
 									{
-										console.log('[ERROR] Error while parsing response data: ' + error);
+										await logError('[ERROR] Error while parsing response data: ' + error);
 										console.log('Data: ' + responseBody);
 										resolve (null);
 									}
@@ -105,7 +105,7 @@ function webRequest(host, path, method = 'GET', token = null, postData = null)
 				'error',
 				function (error)
 				{
-					console.log('[ERROR] Error during web request: ' + error.message);
+					await logError('[ERROR] Error during web request: ' + error.message);
 					resolve (null);
 				}
 			);
@@ -137,7 +137,8 @@ function getRemoteIp()
 			)
 			.catch
 			(
-				(error) => resolve ('[ERROR] Error while getting remote IP address: ' + error)
+				await logError('[ERROR] Error while getting remote IP address: ' + error);
+				(error) => resolve (null)
 			);
 		}
 	);
@@ -162,7 +163,8 @@ function getIpAuthorizationList()
 			)
 			.catch
 			(
-				(error) => resolve ('[ERROR] Error while getting IP authorization list: ' + error)
+				await logError('[ERROR] Error while getting IP authorization list: ' + error);
+				(error) => resolve (null)
 			);
 		}
 	);
@@ -187,7 +189,8 @@ function removeIpAuthorization(id)
 			)
 			.catch
 			(
-				(error) => resolve ('[ERROR] Error while getting IP authorization list: ' + error)
+				await logError('[ERROR] Error while getting IP authorization list: ' + error);
+				(error) => resolve (null)
 			);
 		}
 	);
@@ -213,7 +216,8 @@ function addIpAuthorization(ip)
 			)
 			.catch
 			(
-				(error) => resolve ('[ERROR] Error while authorizing IP address: ' + error)
+				await logError('[ERROR] Error while authorizing IP address: ' + error);
+				(error) => resolve (null)
 			);
 		}
 	);
@@ -240,6 +244,12 @@ function log(message)
 {
 	var now = new Date().toISOString();
 	console.log(now + ' ' + message);
+}
+
+function errorLog(message)
+{
+	var now = new Date().toISOString();
+	console.error(now + ' ' + message);
 }
 
 // // Main
