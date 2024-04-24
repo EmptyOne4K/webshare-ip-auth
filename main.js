@@ -1,4 +1,4 @@
-// Webshare.io automatic IP authorization v0.0.2
+// Webshare.io automatic IP authorization v0.0.3
 
 // Config
 
