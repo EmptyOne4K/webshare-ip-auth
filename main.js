@@ -2,12 +2,19 @@
 
 // Config
 
-const { webshare_token, check_cycle_time, remove_all_auths_on_startup } = require('./config.json');
+const
+{
+	webshare_token,
+	check_cycle_time,
+	remove_all_auths_on_startup,
+	external_ip_provider_script
+} = require('./config.json');
 
 // Libs
 
 const https = require('https');
 const { Buffer } = require('node:buffer');
+const { exec } = require('child_process');
 
 // Functions
 
@@ -51,7 +58,7 @@ function webRequest(host, path, method = 'GET', token = null, postData = null)
 					if (statusCode < 200 || statusCode > 299)
 					{
 						console.log('[WARNING] STATUS: ' + statusCode);
-						console.log('[WARNING] HEADERS: ' + responseHeaders);
+						//console.log('[WARNING] HEADERS: ' + responseHeaders);
 					}
 					
 					res.setEncoding('utf8');
@@ -120,31 +127,65 @@ function webRequest(host, path, method = 'GET', token = null, postData = null)
 	);
 }
 
-function getRemoteIp()
+function getRemoteIp(external_ip_provider_script)
 {
-	return new Promise
-	(
-		(resolve, reject) =>
-		{
-			const data = webRequest
-			(
-				'proxy.webshare.io',
-				'/api/v2/proxy/ipauthorization/whatsmyip/'
-			)
-			.then
-			(
-				(data) => resolve (data['ip_address'])
-			)
-			.catch
-			(
-				() =>
-				{
-					logError('[ERROR] Error while getting remote IP address: ' + error);
-					(error) => resolve (null)
-				}
-			);
-		}
-	);
+	if (!external_ip_provider_script)
+	{
+		return new Promise
+		(
+			(resolve, reject) =>
+			{
+				const data = webRequest
+				(
+					'proxy.webshare.io',
+					'/api/v2/proxy/ipauthorization/whatsmyip/'
+				)
+				.then
+				(
+					(data) => resolve (data == null ? null : data['ip_address'])
+				)
+				.catch
+				(
+					() =>
+					{
+						logError('[ERROR] Error while getting remote IP address: ' + error);
+						(error) => resolve (null)
+					}
+				);
+			}
+		);
+	}
+	else
+	{
+		return new Promise
+		(
+			(resolve, reject) =>
+			{
+				exec
+				(
+					external_ip_provider_script,
+					(error, stdout, stderr) =>
+					{
+						if (error)
+						{
+							logError('[ERROR] Error while executing external IP address provider script: ' + error);
+							resolve (null);
+							return;
+						}
+						
+						if (stderr)
+						{
+							logError('[ERROR] Error while executing external IP address provider script: ' + stderr);
+							resolve (null);
+							return;
+						}
+						
+						resolve (stdout);
+					}
+				);
+			}
+		);
+	}
 }
 
 function getIpAuthorizationList()
@@ -235,6 +276,76 @@ function addIpAuthorization(ip)
 	);
 }
 
+function parseIpAddress(ip)
+{
+	var ipParts = ip.split(',');
+	var ipList = [];
+	
+	for (var n = 0; n < ipParts.length; n++)
+	{
+		var cleanIp = cleanString(ipParts[n]);
+		
+		if (cleanIp != '') ipList.push(cleanIp);
+	}
+	
+	return ipList;
+}
+
+function getAddedIpAddresses(ipList)
+{
+	var ipListAdditions = [];
+	
+	for (var n = 0; n < ipList.length; n++)
+	{
+		var ipCached = false;
+		
+		for (var i = 0; i < remoteIpCache.length; i++)
+		{
+			if (remoteIpCache[i]['ip_address'] == ipList[n])
+			{
+				ipCached = true;
+				break;
+			}
+			
+			if (!keepRunning) return null;
+		}
+		
+		if (!ipCached) ipListAdditions.push(ipList[n]);
+	}
+	
+	return ipListAdditions;
+}
+
+function getRemovedIpAddresses(ipList)
+{
+	var ipListRemovals = [];
+	
+	for (var i = 0; i < remoteIpCache.length; i++)
+	{
+		var ipIncluded = false;
+		
+		for (var n = 0; n < ipList.length; n++)
+		{
+			if (remoteIpCache[i]['ip_address'] == ipList[n])
+			{
+				ipIncluded = true;
+				break;
+			}
+			
+			if (!keepRunning) return null;
+		}
+		
+		if (!ipIncluded) ipListRemovals.push(remoteIpCache[i]['ip_address']);
+	}
+	
+	return ipListRemovals;
+}
+
+function cleanString(line)
+{
+	return line.replace(' ', '').replace('\t', '').replace('\r', '').replace('\n', '')
+}
+
 function wait(msec)
 {
 	return new Promise
@@ -272,20 +383,35 @@ async function main()
 	
 	// Get current remote IP address
 	
-	var lastRemoteIp = await getRemoteIp();
-	while (lastRemoteIp == null)
+	var currentRemoteIp = await getRemoteIp(external_ip_provider_script);
+	while (currentRemoteIp == null)
 	{
 		await log('[ERROR] Could not get current remote IP address. Retrying in 10 seconds...');
 		await wait(10000);
-		lastRemoteIp = await getRemoteIp();
+		currentRemoteIp = await getRemoteIp(external_ip_provider_script);
 	}
 	
-	await log('[INFO] Current remote IP address: ' + lastRemoteIp);
+	await log('[INFO] Current remote IP address: ' + currentRemoteIp);
+	
+	var parsedIpAddress = await parseIpAddress(currentRemoteIp);
+	
+	// Build initial IP address cache
+	
+	for (var n = 0; n < parsedIpAddress.length; n++)
+		remoteIpCache.push({'ip_address': parsedIpAddress[n], 'auth_id': null});
 	
 	// Check current IP authorization list
 	
 	var ipAuthList = await getIpAuthorizationList();
-	var ipAuthListResults = ipAuthList['results'];
+	var ipAuthListResults = ipAuthList == null ? null : ipAuthList['results'];
+	
+	while (ipAuthList == null || ipAuthListResults == null)
+	{
+		await log('[ERROR] Could not get IP address authorization list. Retrying in 10 seconds...');
+		await wait(10000);
+		ipAuthList = await getIpAuthorizationList();
+		ipAuthListResults = ipAuthList == null ? null : ipAuthList['results'];
+	}
 	
 	await log('[INFO] Current IP address authorizations: ' + ipAuthListResults.length);
 	
@@ -319,37 +445,48 @@ async function main()
 	{
 		// Check if current IP address is authorized
 		
-		for (var i = 0; i < ipAuthListResults.length; i++)
+		if (ipAuthListResults.length == 0)
 		{
-			if (lastRemoteIp == ipAuthListResults[i]['ip_address'])
-			{
-				lastRemoteIpAuthorized = true;
-				break;
-			}
-		}
-	}
-	
-	if (lastRemoteIpAuthorized)
-	{
-		await log('[INFO] Current remote IP address is authorized.');
-	}
-	else
-	{
-		// Authorize current IP address
-		
-		await log('[INFO] Authorizing current IP address...');
-		var addResponse = await addIpAuthorization(lastRemoteIp);
-		
-		if (addResponse == null)
-		{
-			await log('[ERROR] Error while authorizing IP address: ' + lastRemoteIp);
+			await log('[INFO] IP authorization list is empty. Skipping authorization checks...');
 		}
 		else
 		{
-			lastRemoteIpId = addResponse['id'];
-			await log(addResponse['id'] + ' => ' + addResponse['ip_address']);
+			await log('[INFO] Checking IP authorizations...');
+			
+			for (var n = 0; n < remoteIpCache.length; n++)
+				for (var i = 0; i < ipAuthListResults.length; i++)
+				{
+					if (remoteIpCache[n]['ip_address'] == ipAuthListResults[i]['ip_address'])
+					{
+						remoteIpCache[n]['auth_id'] = ipAuthListResults[i]['id'];
+						break;
+					}
+				}
 		}
 	}
+	
+	for (var n = 0; n < remoteIpCache.length; n++)
+		if (remoteIpCache[n]['auth_id'] != null)
+		{
+			await log('[INFO] Remote IP address "' + remoteIpCache[n]['ip_address'] + '" is authorized.');
+		}
+		else
+		{
+			// Authorize current IP address
+			
+			await log('[INFO] Authorizing IP address "' + remoteIpCache[n]['ip_address'] + '"...');
+			var addResponse = await addIpAuthorization(remoteIpCache[n]['ip_address']);
+			
+			if (addResponse == null)
+			{
+				await log('[ERROR] Error while authorizing IP address: ' + remoteIpCache[n]['ip_address']);
+			}
+			else
+			{
+				remoteIpCache[n]['auth_id'] = addResponse['id'];
+				await log(addResponse['id'] + ' => ' + addResponse['ip_address']);
+			}
+		}
 	
 	// Start authorization cycle
 	
@@ -358,114 +495,143 @@ async function main()
 		await log('[INFO] Sleeping for ' + check_cycle_time + ' minutes...');
 		await wait(check_cycle_time * 60 * 1000);
 		
-		const newRemoteIp = await getRemoteIp();
+		const newRemoteIp = await getRemoteIp(external_ip_provider_script);
 		while (newRemoteIp == null)
 		{
 			await log('[ERROR] Could not get current remote IP address. Retrying in 10 seconds...');
 			await wait(10000);
-			newRemoteIp = await getRemoteIp();
+			newRemoteIp = await getRemoteIp(external_ip_provider_script);
 		}
+	
+		await log('[INFO] Current remote IP address: ' + newRemoteIp);
 		
-		if (newRemoteIp == lastRemoteIp)
+		var parsedIpAddress = await parseIpAddress(newRemoteIp);
+		
+		// Diff old remote IP addresses with new ones
+		
+		var addedIpAddress = await getAddedIpAddresses(parsedIpAddress);
+		var removedIpAddress = await getRemovedIpAddresses(parsedIpAddress);
+		
+		log('[INFO] Added IP addresses: ' + addedIpAddress);
+		log('[INFO] Removed IP addresses: ' + removedIpAddress);
+		
+		// Update IP authorization list
+		
+		ipAuthList = await getIpAuthorizationList();
+		ipAuthListResults = ipAuthList == null ? null : ipAuthList['results'];
+	
+		if (ipAuthList == null || ipAuthListResults == null)
 		{
-			await log('[INFO] Remote IP address has not changed.');
+			await log('[ERROR] Could not get IP address authorization list. Retrying in next cycle...');
 		}
 		else
 		{
-			await log('[INFO] New remote IP address: ' + newRemoteIp);
-			await log('[INFO] Revoking old IP address: ' + lastRemoteIp);
-			
-			// Clear old auth list data
-			
-			ipAuthList = null;
-			ipAuthListResults = null;
-			
-			if (lastRemoteIpId == null)
+			// Revoke authorizations for removed IP addresses
+
+			for (var n = 0; n < removedIpAddress.length; n++)
 			{
-				await log('[INFO] Getting authorization ID for old IP address...');
-	
-				ipAuthList = await getIpAuthorizationList();
-				ipAuthListResults = ipAuthList['results'];
-		
+				var gotRevoked = false;
+				
 				for (var i = 0; i < ipAuthListResults.length; i++)
 				{
-					if (lastRemoteIp == ipAuthListResults[i]['ip_address'])
+					if (removedIpAddress[n] == ipAuthListResults[i]['ip_address'])
 					{
-						lastRemoteIpId = ipAuthListResults[i]['id'];
-						await log('[INFO] Authorization ID: ' + lastRemoteIpId);
+						await log('[INFO] Revoking authorization for IP address "' + removedIpAddress[n] + '"...');
+						if (await removeIpAuthorization(ipAuthListResults[i]['id']))
+							await log('X ' + removedIpAddress[n]);
+						else
+							await log('[ERROR] Error while revoking authorization for IP address "' + removedIpAddress[n] + '".');
+						
+						var gotRevoked = true;
+						break;
+					}
+				}
+				
+				if (!gotRevoked) await log('[WARNING] Authorization list did not include IP address "' + removedIpAddress[n] + '". No revoke needed.');
+				
+				// Remove IP address from cache
+								
+				for (var i = 0; i < remoteIpCache.length; i++)
+				{
+					if (remoteIpCache[i]['ip_address'] == removedIpAddress[n])
+					{
+						remoteIpCache.splice(i, 1);
 						break;
 					}
 				}
 			}
 			
-			if (lastRemoteIpId == null)
-			{
-				await log('[WARNING] Old IP address does not seem to have been authorized. Skipping revoke...');
-			}
-			else
-			{
-				// Revoke old IP address authorization
-				
-				await log('[INFO] Revoking old IP address authorization...');
-				if (await removeIpAuthorization(lastRemoteIpId))
-					await log('X ' + lastRemoteIp);
-				else
-					await log('[ERROR] Error while revoking old IP address authorization.');
-			}
+			// Authorize new IP addresses
 			
-			// Ensure auth list is loaded
-			
-			if (ipAuthList == null || ipAuthListResults == null)
+			for (var n = 0; n < addedIpAddress.length; n++)
 			{
-				await log('[INFO] Getting current IP address authorization list...');
-				ipAuthList = await getIpAuthorizationList();
-				ipAuthListResults = ipAuthList['results'];
-			}
-			
-			lastRemoteIpAuthorized = false;
-			
-			await log('[INFO] Checking IP address authorization...');
-			if (ipAuthList == null || ipAuthListResults == null)
-			{
-				await log('[ERROR] Could not get IP address authorization list. Skipping IP authorization check. Assuming current remote IP address is not authorized...');
-			}
-			else
-			{
-				// Check if current IP address is authorized
+				var authId = null;
 				
 				for (var i = 0; i < ipAuthListResults.length; i++)
 				{
-					if (lastRemoteIp == ipAuthListResults[i]['ip_address'])
+					if (addedIpAddress[n] == ipAuthListResults[i]['ip_address'])
 					{
-						lastRemoteIpAuthorized = true;
+						authId = ipAuthListResults[i]['id'];
+						remoteIpCache.push({'ip_address': addedIpAddress[n], 'auth_id': authId});
 						break;
 					}
 				}
-			}
-			
-			// Authorize current IP address
-			
-			if (lastRemoteIpAuthorized)
-			{
-				await log('[INFO] Current remote IP address is authorized.');
-			}
-			else
-			{
-				await log('[INFO] Current remote IP address is not authorized. Authorizing new IP address...');
-				var addResponse = await addIpAuthorization(lastRemoteIp);
 				
-				if (addResponse == null)
+				if (authId == null)
 				{
-					await log('[ERROR] Error while authorizing IP address: ' + lastRemoteIp);
+					await log('[INFO] IP address "' + addedIpAddress[n] + '" is not authorized. Authorizing...');
+					var addResponse = await addIpAuthorization(addedIpAddress[n]);
+					
+					if (addResponse == null)
+					{
+						await log('[ERROR] Error while authorizing IP address: ' + addedIpAddress[n]);
+					}
+					else
+					{
+						authId = addResponse['id'];
+						remoteIpCache.push({'ip_address': addedIpAddress[n], 'auth_id': authId});
+						await log(addResponse['id'] + ' => ' + addResponse['ip_address']);
+					}
 				}
 				else
 				{
-					lastRemoteIpId = addResponse['id'];
-					await log(addResponse['id'] + ' => ' + addResponse['ip_address']);
+					await log('[INFO] IP address "' + addedIpAddress[n] + '" has already been authorized.');
 				}
 			}
 			
-			lastRemoteIp = newRemoteIp;
+			// Check if cached IP addresses are still authorized
+			
+			for (var n = 0; n < remoteIpCache.length; n++)
+			{
+				var authId = null;
+				
+				for (var i = 0; i < ipAuthListResults.length; i++)
+				{
+					if (remoteIpCache[n]['ip_address'] == ipAuthListResults[i]['ip_address'])
+					{
+						authId = ipAuthListResults[i]['id'];
+						remoteIpCache[n]['id'] = authId;
+						break;
+					}
+				}
+				
+				if (authId == null)
+				{
+					await log('[WARNING] Cached IP address "' + remoteIpCache[n]['ip_address'] + '" is not authorized. Authorizing...');
+					var addResponse = await addIpAuthorization(remoteIpCache[n]['ip_address']);
+					
+					if (addResponse == null)
+					{
+						await log('[ERROR] Error while authorizing cached IP address: ' + remoteIpCache[n]['ip_address']);
+					}
+					else
+					{
+						authId = addResponse['id'];
+						remoteIpCache[n]['id'] = authId;
+						await log(addResponse['id'] + ' => ' + addResponse['ip_address']);
+					}
+				}
+			}
 		}
 	}
 	
@@ -488,7 +654,8 @@ function shutdown()
 
 global.keepRunning = true;
 global.lastRemoteIp = null;
-global.lastRemoteIpId = null;
+global.remoteIpCache = [];
+//global.lastRemoteIpId = null;
 
 // Start
 
