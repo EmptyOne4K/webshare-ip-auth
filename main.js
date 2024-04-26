@@ -58,7 +58,7 @@ function webRequest(host, path, method = 'GET', token = null, postData = null)
 					if (statusCode < 200 || statusCode > 299)
 					{
 						console.log('[WARNING] STATUS: ' + statusCode);
-						//console.log('[WARNING] HEADERS: ' + responseHeaders);
+						console.log('[WARNING] HEADERS: ' + responseHeaders);
 					}
 					
 					res.setEncoding('utf8');
@@ -284,7 +284,6 @@ function parseIpAddress(ip)
 	for (var n = 0; n < ipParts.length; n++)
 	{
 		var cleanIp = cleanString(ipParts[n]);
-		
 		if (cleanIp != '') ipList.push(cleanIp);
 	}
 	
@@ -653,9 +652,7 @@ function shutdown()
 // Init
 
 global.keepRunning = true;
-global.lastRemoteIp = null;
 global.remoteIpCache = [];
-//global.lastRemoteIpId = null;
 
 // Start
 
