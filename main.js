@@ -501,8 +501,6 @@ async function main()
 			await wait(10000);
 			newRemoteIp = await getRemoteIp(external_ip_provider_script);
 		}
-	
-		await log('[INFO] Current remote IP address: ' + newRemoteIp);
 		
 		var parsedIpAddress = await parseIpAddress(newRemoteIp);
 		
@@ -511,8 +509,10 @@ async function main()
 		var addedIpAddress = await getAddedIpAddresses(parsedIpAddress);
 		var removedIpAddress = await getRemovedIpAddresses(parsedIpAddress);
 		
-		log('[INFO] Added IP addresses: ' + addedIpAddress);
-		log('[INFO] Removed IP addresses: ' + removedIpAddress);
+		if (addedIpAddress.length > 0)
+			log('[INFO] Added IP addresses: ' + addedIpAddress);
+		if (removedIpAddress.length > 0)
+			log('[INFO] Removed IP addresses: ' + removedIpAddress);
 		
 		// Update IP authorization list
 		
@@ -596,6 +596,11 @@ async function main()
 				{
 					await log('[INFO] IP address "' + addedIpAddress[n] + '" has already been authorized.');
 				}
+			}
+			
+			if (removedIpAddress.length + addedIpAddress.length == 0)
+			{
+				await log('[INFO] Remote IP address(es) did not change.');
 			}
 			
 			// Check if cached IP addresses are still authorized
