@@ -2,5 +2,6 @@
     "webshare_token": "YOUR TOKEN HERE",
     "check_cycle_time": 5,
     "remove_all_auths_on_startup": false,
+	"external_ip_provider_script": "",
     "LAST_LINE": "I HATE COMMAS"
 }
