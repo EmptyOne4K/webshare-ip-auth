@@ -25,7 +25,7 @@ function webRequest(host, path, method = 'GET', token = null, postData = null)
 		host: host,
 		path: path,
 		method: method,
-		headers: token == null ? [] :
+		headers: token == null ? null :
 		{
 			"Authorization": "Token " + token,
 		}
