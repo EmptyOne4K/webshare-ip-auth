@@ -615,7 +615,7 @@ async function main()
 						if (remoteIpCache[n]['ip_address'] == ipAuthListResults[i]['ip_address'])
 						{
 							authId = ipAuthListResults[i]['id'];
-							remoteIpCache[n]['id'] = authId;
+							remoteIpCache[n]['auth_id'] = authId;
 							break;
 						}
 					}
@@ -632,7 +632,7 @@ async function main()
 					else
 					{
 						authId = addResponse['id'];
-						remoteIpCache[n]['id'] = authId;
+						remoteIpCache[n]['auth_id'] = authId;
 						await log(addResponse['id'] + ' => ' + addResponse['ip_address']);
 					}
 				}
