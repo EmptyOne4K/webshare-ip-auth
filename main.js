@@ -494,7 +494,7 @@ async function main()
 		await log('[INFO] Sleeping for ' + check_cycle_time + ' minutes...');
 		await wait(check_cycle_time * 60 * 1000);
 		
-		const newRemoteIp = await getRemoteIp(external_ip_provider_script);
+		var newRemoteIp = await getRemoteIp(external_ip_provider_script);
 		while (newRemoteIp == null)
 		{
 			await log('[ERROR] Could not get current remote IP address. Retrying in 10 seconds...');
@@ -607,17 +607,18 @@ async function main()
 			
 			for (var n = 0; n < remoteIpCache.length; n++)
 			{
-				var authId = null;
+				var authId = remoteIpCache[n]['auth_id'];
 				
-				for (var i = 0; i < ipAuthListResults.length; i++)
-				{
-					if (remoteIpCache[n]['ip_address'] == ipAuthListResults[i]['ip_address'])
+				if (remoteIpCache[n]['auth_id'] == null)
+					for (var i = 0; i < ipAuthListResults.length; i++)
 					{
-						authId = ipAuthListResults[i]['id'];
-						remoteIpCache[n]['id'] = authId;
-						break;
+						if (remoteIpCache[n]['ip_address'] == ipAuthListResults[i]['ip_address'])
+						{
+							authId = ipAuthListResults[i]['id'];
+							remoteIpCache[n]['id'] = authId;
+							break;
+						}
 					}
-				}
 				
 				if (authId == null)
 				{
