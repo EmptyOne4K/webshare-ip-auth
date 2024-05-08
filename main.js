@@ -445,11 +445,11 @@ async function main()
 		
 		if (ipAuthListResults.length == 0)
 		{
-			await log('[INFO] IP authorization list is empty. Skipping authorization checks...');
+			await log('[INFO] IP authorization list is empty. Skipping authorization comparisons...');
 		}
 		else
 		{
-			await log('[INFO] Checking IP authorizations...');
+			await log('[INFO] Comparing IP authorizations...');
 			
 			for (var n = 0; n < remoteIpCache.length; n++)
 				for (var i = 0; i < ipAuthListResults.length; i++)
@@ -459,6 +459,8 @@ async function main()
 						remoteIpCache[n]['auth_id'] = ipAuthListResults[i]['id'];
 						break;
 					}
+					
+					if (!keepRunning) return;
 				}
 		}
 	}
@@ -484,6 +486,8 @@ async function main()
 				remoteIpCache[n]['auth_id'] = addResponse['id'];
 				await log(addResponse['id'] + ' => ' + addResponse['ip_address']);
 			}
+					
+			if (!keepRunning) return;
 		}
 	
 	// Start authorization cycle
