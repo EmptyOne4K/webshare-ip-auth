@@ -58,7 +58,7 @@ function webRequest(host, path, method = 'GET', token = null, postData = null)
 					if (statusCode < 200 || statusCode > 299)
 					{
 						console.log('[WARNING] STATUS: ' + statusCode);
-						//console.log('[WARNING] HEADERS: ' + responseHeaders);
+						console.log('[WARNING] HEADERS: ' + responseHeaders);
 					}
 					
 					res.setEncoding('utf8');
@@ -504,8 +504,6 @@ async function main()
 			await wait(10000);
 			newRemoteIp = await getRemoteIp(external_ip_provider_script);
 		}
-	
-		await log('[INFO] Current remote IP address: ' + newRemoteIp);
 		
 		var parsedIpAddress = await parseIpAddress(newRemoteIp);
 		
