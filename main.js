@@ -1,4 +1,4 @@
-// Webshare.io automatic IP authorization v0.0.3
+// Webshare.io automatic IP authorization v0.0.5
 
 // Config
 
@@ -97,7 +97,8 @@ function webRequest(host, path, method = 'GET', token = null, postData = null)
 									catch (error)
 									{
 										logError('[ERROR] Error while parsing response data: ' + error);
-										console.log('Data: ' + responseBody);
+										logError('Path: ' + path);
+										logError('Data: ' + responseBody);
 										resolve (null);
 									}
 								}
@@ -238,7 +239,7 @@ function removeIpAuthorization(id)
 			(
 				() =>
 				{
-					logError('[ERROR] Error while getting IP authorization list: ' + error);
+					logError('[ERROR] Error while revoking IP authorization: ' + error);
 					(error) => resolve (null)
 				}
 			);
@@ -284,7 +285,6 @@ function parseIpAddress(ip)
 	for (var n = 0; n < ipParts.length; n++)
 	{
 		var cleanIp = cleanString(ipParts[n]);
-		
 		if (cleanIp != '') ipList.push(cleanIp);
 	}
 	
@@ -386,7 +386,7 @@ async function main()
 	var currentRemoteIp = await getRemoteIp(external_ip_provider_script);
 	while (currentRemoteIp == null)
 	{
-		await log('[ERROR] Could not get current remote IP address. Retrying in 10 seconds...');
+		await log('[WARNING] Could not get current remote IP address. Retrying in 10 seconds...');
 		await wait(10000);
 		currentRemoteIp = await getRemoteIp(external_ip_provider_script);
 	}
@@ -407,7 +407,7 @@ async function main()
 	
 	while (ipAuthList == null || ipAuthListResults == null)
 	{
-		await log('[ERROR] Could not get IP address authorization list. Retrying in 10 seconds...');
+		await log('[WARNING] Could not get IP address authorization list. Retrying in 10 seconds...');
 		await wait(10000);
 		ipAuthList = await getIpAuthorizationList();
 		ipAuthListResults = ipAuthList == null ? null : ipAuthList['results'];
@@ -420,12 +420,10 @@ async function main()
 		await log(ipAuthListResults[i]['id'] + ' => ' + ipAuthListResults[i]['ip_address']);
 	}
 	
-	// Wipe old IP authorizations
-	
-	var lastRemoteIpAuthorized = false;
-	
 	if (remove_all_auths_on_startup)
 	{
+		// Wipe old IP authorizations
+		
 		if (ipAuthListResults.length == 0)
 		{
 			await log('[INFO] IP authorization list is empty. Skipping revokes...');
@@ -447,11 +445,11 @@ async function main()
 		
 		if (ipAuthListResults.length == 0)
 		{
-			await log('[INFO] IP authorization list is empty. Skipping authorization checks...');
+			await log('[INFO] IP authorization list is empty. Skipping authorization comparisons...');
 		}
 		else
 		{
-			await log('[INFO] Checking IP authorizations...');
+			await log('[INFO] Comparing IP authorizations...');
 			
 			for (var n = 0; n < remoteIpCache.length; n++)
 				for (var i = 0; i < ipAuthListResults.length; i++)
@@ -461,6 +459,8 @@ async function main()
 						remoteIpCache[n]['auth_id'] = ipAuthListResults[i]['id'];
 						break;
 					}
+					
+					if (!keepRunning) return;
 				}
 		}
 	}
@@ -479,13 +479,15 @@ async function main()
 			
 			if (addResponse == null)
 			{
-				await log('[ERROR] Error while authorizing IP address: ' + remoteIpCache[n]['ip_address']);
+				await log('[WARNING] Could not authorize IP address: ' + remoteIpCache[n]['ip_address']);
 			}
 			else
 			{
 				remoteIpCache[n]['auth_id'] = addResponse['id'];
 				await log(addResponse['id'] + ' => ' + addResponse['ip_address']);
 			}
+					
+			if (!keepRunning) return;
 		}
 	
 	// Start authorization cycle
@@ -495,10 +497,10 @@ async function main()
 		await log('[INFO] Sleeping for ' + check_cycle_time + ' minutes...');
 		await wait(check_cycle_time * 60 * 1000);
 		
-		const newRemoteIp = await getRemoteIp(external_ip_provider_script);
+		var newRemoteIp = await getRemoteIp(external_ip_provider_script);
 		while (newRemoteIp == null)
 		{
-			await log('[ERROR] Could not get current remote IP address. Retrying in 10 seconds...');
+			await log('[WARNING] Could not get current remote IP address. Retrying in 10 seconds...');
 			await wait(10000);
 			newRemoteIp = await getRemoteIp(external_ip_provider_script);
 		}
@@ -512,8 +514,10 @@ async function main()
 		var addedIpAddress = await getAddedIpAddresses(parsedIpAddress);
 		var removedIpAddress = await getRemovedIpAddresses(parsedIpAddress);
 		
-		log('[INFO] Added IP addresses: ' + addedIpAddress);
-		log('[INFO] Removed IP addresses: ' + removedIpAddress);
+		if (addedIpAddress.length > 0)
+			log('[INFO] Added IP addresses: ' + addedIpAddress);
+		if (removedIpAddress.length > 0)
+			log('[INFO] Removed IP addresses: ' + removedIpAddress);
 		
 		// Update IP authorization list
 		
@@ -522,7 +526,7 @@ async function main()
 	
 		if (ipAuthList == null || ipAuthListResults == null)
 		{
-			await log('[ERROR] Could not get IP address authorization list. Retrying in next cycle...');
+			await log('[WARNING] Could not get IP address authorization list. Retrying in next cycle...');
 		}
 		else
 		{
@@ -540,7 +544,7 @@ async function main()
 						if (await removeIpAuthorization(ipAuthListResults[i]['id']))
 							await log('X ' + removedIpAddress[n]);
 						else
-							await log('[ERROR] Error while revoking authorization for IP address "' + removedIpAddress[n] + '".');
+							await log('[WARNING] Could not revoke authorization for IP address "' + removedIpAddress[n] + '".');
 						
 						var gotRevoked = true;
 						break;
@@ -584,7 +588,7 @@ async function main()
 					
 					if (addResponse == null)
 					{
-						await log('[ERROR] Error while authorizing IP address: ' + addedIpAddress[n]);
+						await log('[WARNING] Could not authorize IP address: ' + addedIpAddress[n]);
 					}
 					else
 					{
@@ -599,21 +603,27 @@ async function main()
 				}
 			}
 			
+			if (removedIpAddress.length + addedIpAddress.length == 0)
+			{
+				await log('[INFO] Remote IP address(es) did not change.');
+			}
+			
 			// Check if cached IP addresses are still authorized
 			
 			for (var n = 0; n < remoteIpCache.length; n++)
 			{
-				var authId = null;
+				var authId = remoteIpCache[n]['auth_id'];
 				
-				for (var i = 0; i < ipAuthListResults.length; i++)
-				{
-					if (remoteIpCache[n]['ip_address'] == ipAuthListResults[i]['ip_address'])
+				if (remoteIpCache[n]['auth_id'] == null)
+					for (var i = 0; i < ipAuthListResults.length; i++)
 					{
-						authId = ipAuthListResults[i]['id'];
-						remoteIpCache[n]['id'] = authId;
-						break;
+						if (remoteIpCache[n]['ip_address'] == ipAuthListResults[i]['ip_address'])
+						{
+							authId = ipAuthListResults[i]['id'];
+							remoteIpCache[n]['auth_id'] = authId;
+							break;
+						}
 					}
-				}
 				
 				if (authId == null)
 				{
@@ -622,12 +632,12 @@ async function main()
 					
 					if (addResponse == null)
 					{
-						await log('[ERROR] Error while authorizing cached IP address: ' + remoteIpCache[n]['ip_address']);
+						await log('[WARNING] Could not authorize cached IP address: ' + remoteIpCache[n]['ip_address']);
 					}
 					else
 					{
 						authId = addResponse['id'];
-						remoteIpCache[n]['id'] = authId;
+						remoteIpCache[n]['auth_id'] = authId;
 						await log(addResponse['id'] + ' => ' + addResponse['ip_address']);
 					}
 				}
@@ -653,9 +663,7 @@ function shutdown()
 // Init
 
 global.keepRunning = true;
-global.lastRemoteIp = null;
 global.remoteIpCache = [];
-//global.lastRemoteIpId = null;
 
 // Start
 
